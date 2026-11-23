@@ -1,0 +1,16 @@
+#include <stdio.h>
+int next_token(void);
+extern int shared_token;
+int next_external_token(void);
+int auto_token(void) { int token = 1000; return ++token; }
+int main(void) {
+    int s1=next_token(), s2=next_token(), s3=next_token();
+    int a1=auto_token(), a2=auto_token(), a3=auto_token();
+    printf("static: %d %d %d\n", s1, s2, s3);
+    printf("auto  : %d %d %d\n", a1, a2, a3);
+    puts("register loop:");
+    for (register int i=0; i<3; ++i) printf("%d\n", i);
+    int e1=next_external_token(), e2=next_external_token(), e3=next_external_token();
+    printf("extern: %d %d %d\n", e1, e2, e3);
+    return 0;
+}
