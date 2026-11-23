@@ -1,0 +1,40 @@
+include <stdio.h>
+#include <time.h>
+#include <string.h>
+typedef struct { int day, month, year; } Date;
+typedef struct { int hour, minute; } Time;
+typedef enum { PACKAGED, COOKED, COMBO } ItemType;
+typedef struct { Date expiry; } PackagedInfo;
+typedef struct { Time prepared; } CookedInfo;
+typedef struct { int itemIds[3]; int count; } ComboInfo;
+typedef struct { int id; char name[40]; float price; int stock; ItemType type; union { PackagedInfo packaged; CookedInfo cooked; ComboInfo combo; } detail; } Item;
+typedef struct { int itemId, quantity; float revenue; } SaleLine;
+int find_item(const Item items[], int n, int id) { for (int i=0;i<n;++i) if(items[i].id==id) return i; return -1; }
+int record_sale(Item items[], int n, int id, int qty, SaleLine *line) {
+    int i=find_item(items,n,id);
+    if (i<0 || qty<=0 || qty>items[i].stock || line==NULL) return 0;
+    items[i].stock-=qty; line->itemId=id; line->quantity=qty; line->revenue=qty*items[i].price; return 1;
+}
+int date_value(Date d) { struct tm t={0}; t.tm_mday=d.day; t.tm_mon=d.month-1; t.tm_year=d.year-1900; t.tm_isdst=-1; return (int)(mktime(&t)/(24*60*60)); }
+void expiry_warning(const Item items[], int n, Date today) {
+    int found=0; for(int i=0;i<n;++i) if(items[i].type==PACKAGED) { int diff=date_value(items[i].detail.packaged.expiry)-date_value(today); if(diff>=0 && diff<=2) { printf("EXPIRING: %d %s\n",items[i].id,items[i].name); found=1; } }
+    if(!found) puts("No packaged items expiring within two days.");
+}
+void sort_summary(SaleLine a[], int n) { for(int i=0;i<n-1;++i) { int best=i; for(int j=i+1;j<n;++j) if(a[j].revenue>a[best].revenue) best=j; if(best!=i) { SaleLine t=a[i]; a[i]=a[best]; a[best]=t; } } }
+int main(void) {
+    Item items[3]={
+        {1,"Milk Pack",30.0f,20,PACKAGED,{.packaged={{25,11,2026}}}},
+        {2,"Veg Meal",80.0f,10,COOKED,{.cooked={{10,30}}}},
+        {3,"Juice Pack",20.0f,2,PACKAGED,{.packaged={{28,11,2026}}}}
+    };
+    SaleLine sales[3]; int count=0; Date today={23,11,2026};
+    puts("Canteen sales demonstration:");
+    if(record_sale(items,3,2,2,&sales[count])) { ++count; puts("Normal sale: ACCEPTED"); } else puts("Normal sale: REJECTED");
+    if(record_sale(items,3,3,5,&sales[count])) { ++count; puts("Exceeds stock: ACCEPTED"); } else puts("Exceeds stock: REJECTED");
+    if(record_sale(items,3,1,4,&sales[count])) ++count;
+    printf("Remaining stock - Veg Meal: %d, Juice Pack: %d, Milk Pack: %d\n",items[1].stock,items[2].stock,items[0].stock);
+    puts("Expiry warning:"); expiry_warning(items,3,today);
+    sort_summary(sales,count); puts("Revenue-sorted summary:");
+    for(int i=0;i<count;++i) printf("Item %d revenue %.2f\n",sales[i].itemId,sales[i].revenue);
+    return 0;
+}
